@@ -1,12 +1,17 @@
 #ifndef MY_LS
 #define MY_LS
 
+#include <time.h>
 #include <dirent.h>
 
 #define ARG_DELIM                '-'
 #define ARG_RECUR                'R'
 #define ARG_LFORM                'l'
 #define ARG_INDEX                'i'
+
+char* month[12] = {"Jan", "Feb", "Mar", "Apr",
+		  "May", "Jun", "Jul", "Aug",
+		  "Sep", "Oct", "Nov", "Dec"};
 
 typedef struct {
   int ino;

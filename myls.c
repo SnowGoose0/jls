@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -109,7 +110,25 @@ char* cat_path(const char* base, const char* end) {
 
 char* cat_date(time_t t) {
   char* t_format;
+  struct tm tm_format = *localtime(&t);
 
+  t_format = (char*) calloc(30, sizeof(char));
+
+  char* spc_d = "";
+  char* spc_h = "";
+  char* spc_m = "";
+
+  if (tm_format.tm_mday < 10) spc_d = " ";
+  if (tm_format.tm_hour < 10) spc_h = "0";
+  if (tm_format.tm_min < 10) spc_m = "0";
+  
+  sprintf(t_format, "%s %s%d %s%d:%s%d %d",
+	  month[tm_format.tm_mon],
+	  spc_d, tm_format.tm_mday,
+	  spc_h, tm_format.tm_hour,
+	  spc_m, tm_format.tm_min,
+	  1900 + tm_format.tm_year);
+  
   return t_format;
 }
 
@@ -155,7 +174,7 @@ void ls_dir(Directory* dir, const char* path) {
     }
     
     dir->files[idx] = f;
-    printf("%s %s\n", f.name, f.group);
+    printf("%s %s\n", f.name, f.date);
     dir->files = (File*) realloc(dir->files, (++dir->file_count + 1) * sizeof(File));
   }
 
