@@ -55,14 +55,14 @@ int main(int argc, char** argv) {
 	}
       }
 
-      /* Argument provided is (potentially) directory */
+      /* Argument provided is (potentially) a directory */
       else {
 	if (dir_path_index >= dir_path_size) {
 	  dir_path_size++;
 	  dir_paths = (char**) realloc(dir_paths, dir_path_size * sizeof(char*));
 	}
 
-	dir_paths[dir_path_index] = argv[dir_path_index];
+	dir_paths[dir_path_index] = argv[i];
 	dir_path_index++;
       }
     }
@@ -87,13 +87,13 @@ int main(int argc, char** argv) {
   }
 
  EXIT:
-  for (int i = 0; i < dir_path_index; i++) closedir(dir_list[i].dir_stream);
-
   mem_free(dir_paths);
   mem_free(dir_list);
   
   exit(EXIT_SUCCESS);
 }
+
+
 
 char* cat_path(const char* base, const char* end) {
   char* path;
@@ -132,7 +132,35 @@ char* cat_date(time_t t) {
   return t_format;
 }
 
+char* cat_perm(mode_t m) {
+  char* m_format = (char*) calloc(11, sizeof(char));
+  
+  m_format[0] = S_ISDIR(m) ? 'd' : '-';
+  m_format[1] = (m & S_IRUSR) ? 'r' : '-';
+  m_format[2] = (m & S_IWUSR) ? 'w' : '-';
+  m_format[3] = (m & S_IXUSR) ? 'x' : '-';
+  m_format[4] = (m & S_IRGRP) ? 'r' : '-';
+  m_format[5] = (m & S_IWGRP) ? 'w' : '-';
+  m_format[6] = (m & S_IXGRP) ? 'x' : '-';
+  m_format[7] = (m & S_IROTH) ? 'r' : '-';
+  m_format[8] = (m & S_IWOTH) ? 'w' : '-';
+  m_format[9] = (m & S_IXOTH) ? 'x' : '-';
+  
+  return m_format;
+}
+
+int f_comp(const void* fa, const void* fb) {
+  char* fa_s = (char*) ((File*) fa)->name;
+  char* fb_s = (char*) ((File*) fb)->name;
+  return strcmp(fa_s, fb_s);
+}
+
+int d_comp(const void* da, const void* db) {
+  
+}
+
 void ls_dir(Directory* dir, const char* path) {
+  printf("%s\n", path);
   dir->base_path = path;
   dir->dir_stream = opendir(path);
   dir->files = (File*) calloc(1, sizeof(File));
@@ -162,7 +190,10 @@ void ls_dir(Directory* dir, const char* path) {
 
     stat(f.path, &dir_meta);
 
+    f.size = dir_meta.st_size;
+    f.hlinks = dir_meta.st_nlink;
     f.date = cat_date(dir_meta.st_mtime);
+    f.perm = cat_perm(dir_meta.st_mode);
     f.group = getgrgid(dir_meta.st_gid)->gr_name;
     f.user = getpwuid(dir_meta.st_uid)->pw_name;
 
@@ -174,10 +205,43 @@ void ls_dir(Directory* dir, const char* path) {
     }
     
     dir->files[idx] = f;
-    printf("%s %s\n", f.name, f.date);
+    //printf("%s %s %s\n", dir->files[idx].perm, f.name, f.date);
     dir->files = (File*) realloc(dir->files, (++dir->file_count + 1) * sizeof(File));
   }
 
+  qsort(dir->files, dir->file_count, sizeof(File), f_comp); /* Sort files in directories */
+
+  for (int i = 0; i < dir->file_count; ++i) {
+    File f = dir->files[i];
+
+    if (i_flag) {
+      printf("%d ", f.ino);
+    }
+
+    if (l_flag) {
+      printf("%s %d %s %s %d %s ",
+	     f.perm, f.hlinks, f.group, f.user, f.size, f.date);
+    }
+
+    printf("%s\n", f.name);
+  }
+
+  if (r_flag && dir->child_dir_count != 0) {
+    
+  }
+
+  /* Mem management */
+
+  mem_free(dir->child_dir);
+
+  for (int i = 0; i < dir->file_count; ++i) {
+    mem_free(dir->files[i].date);
+    mem_free(dir->files[i].path);
+    mem_free(dir->files[i].perm);
+  }
+
+  closedir(dir->dir_stream);
+  mem_free(dir->files);
 }
 
 void mem_free(void* ptr) {

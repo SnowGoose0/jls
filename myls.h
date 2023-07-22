@@ -15,21 +15,22 @@ char* month[12] = {"Jan", "Feb", "Mar", "Apr",
 
 typedef struct {
   int ino;
+  int hlinks;
   int size;
   
   const char* name;
-  const char* path;
-  const char* perms;
   const char* group;
   const char* user;
-  const char* date;
+  char* path;
+  char* perm;
+  char* date;
 
   unsigned char type;
 } File;
 
 typedef struct dir {
-  DIR* dir_stream;
   struct dirent* dir_entry;
+  DIR* dir_stream;
   char* base_path;
 
   int file_count;
@@ -39,8 +40,12 @@ typedef struct dir {
   struct dir* child_dir;
 } Directory;
 
+int f_comp(const void* fa, const void* fb);
+int d_comp(const void* da, const void* db); 
+
 char* cat_path(const char* base, const char* end);
 char* cat_date(time_t t);
+char* cat_perm(mode_t m);
 void ls_dir(Directory* dir, const char* path);
 void mem_free(void* ptr);
 
