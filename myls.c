@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <glob.h>
 #include <pwd.h>
 #include <grp.h>
 
@@ -75,25 +76,45 @@ int main(int argc, char** argv) {
   dir_list = (Directory*) malloc(dir_path_index * sizeof(Directory));
 
   for (int i = 0; i < dir_path_index && dir_paths[i] != NULL; ++i) {
-    char* path = dir_paths[i];
-    struct stat path_stat;
-    stat(path, &path_stat);
+    /* char* path = dir_paths[i]; */
+    /* struct stat path_stat; */
+    /* stat(path, &path_stat); */
     
-    if (S_ISDIR(path_stat.st_mode)) {
-      dir_list[i].dir_stream = NULL;
-      dir_list[i].dir_entry = NULL;
-      dir_list[i].files = NULL;
-      dir_list[i].child_dir = NULL;
 
-      dir_list[i].file_count = 0;
-      dir_list[i].child_dir_count = 0;
+
+    char* ppath = dir_paths[i];
+    glob_t gl;
+    int res = glob(ppath, 0, NULL, &gl);
+
+    if (res == 0) {
+      for (size_t j = 0; j < gl.gl_pathc; ++j) {
+	char* path = gl.gl_pathv[j];
+	struct stat path_stat;
+	stat(path, &path_stat);
+	if (S_ISDIR(path_stat.st_mode)) {
+	  dir_list[i].dir_stream = NULL;
+	  dir_list[i].dir_entry = NULL;
+	  dir_list[i].files = NULL;
+	  dir_list[i].child_dir = NULL;
+
+	  dir_list[i].file_count = 0;
+	  dir_list[i].child_dir_count = 0;
     
-      ls_dir(dir_list + i, dir_paths[i]); 
+	  ls_dir(dir_list + i, dir_paths[i]);
+	}
+
+	else {
+	  ls_fdir(path);
+	}
+      }
+      
+      globfree(&gl);
     }
 
-    else {
-      ls_fdir(path);
+    else if (res == GLOB_NOMATCH) {
+      
     }
+
   }
 
  EXIT:
