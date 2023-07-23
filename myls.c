@@ -75,15 +75,25 @@ int main(int argc, char** argv) {
   dir_list = (Directory*) malloc(dir_path_index * sizeof(Directory));
 
   for (int i = 0; i < dir_path_index && dir_paths[i] != NULL; ++i) {
-    dir_list[i].dir_stream = NULL;
-    dir_list[i].dir_entry = NULL;
-    dir_list[i].files = NULL;
-    dir_list[i].child_dir = NULL;
-
-    dir_list[i].file_count = 0;
-    dir_list[i].child_dir_count = 0;
+    char* path = dir_paths[i];
+    struct stat path_stat;
+    stat(path, &path_stat);
     
-    ls_dir(dir_list + i, dir_paths[i]);
+    if (S_ISDIR(path_stat.st_mode)) {
+      dir_list[i].dir_stream = NULL;
+      dir_list[i].dir_entry = NULL;
+      dir_list[i].files = NULL;
+      dir_list[i].child_dir = NULL;
+
+      dir_list[i].file_count = 0;
+      dir_list[i].child_dir_count = 0;
+    
+      ls_dir(dir_list + i, dir_paths[i]); 
+    }
+
+    else {
+      ls_fdir(path);
+    }
   }
 
  EXIT:
@@ -92,6 +102,7 @@ int main(int argc, char** argv) {
   
   exit(EXIT_SUCCESS);
 }
+
 
 
 
@@ -163,15 +174,17 @@ void ls_dir(Directory* dir, const char* path) {
   printf("%s\n", path);
   dir->base_path = path;
   dir->dir_stream = opendir(path);
-  dir->files = (File*) calloc(1, sizeof(File));
-  dir->child_dir = (Directory*) calloc(1, sizeof(Directory));
-  
+
   if (dir->dir_stream == NULL) {
+        
     perror("Error opening directory");
     /* TODO memory leak when failure */
     return;
   }
-  
+    
+  dir->files = (File*) calloc(1, sizeof(File));
+  dir->child_dir = (Directory*) calloc(1, sizeof(Directory));
+ 
   while ((dir->dir_entry = readdir(dir->dir_stream)) != NULL) {
     int idx = dir->file_count;
     File f;
@@ -212,18 +225,7 @@ void ls_dir(Directory* dir, const char* path) {
   qsort(dir->files, dir->file_count, sizeof(File), f_comp); /* Sort files in directories */
 
   for (int i = 0; i < dir->file_count; ++i) {
-    File f = dir->files[i];
-
-    if (i_flag) {
-      printf("%d ", f.ino);
-    }
-
-    if (l_flag) {
-      printf("%s %d %s %s %d %s ",
-	     f.perm, f.hlinks, f.group, f.user, f.size, f.date);
-    }
-
-    printf("%s\n", f.name);
+    print_dir(dir->files[i]);
   }
 
   if (r_flag && dir->child_dir_count != 0) {
@@ -242,6 +244,36 @@ void ls_dir(Directory* dir, const char* path) {
 
   closedir(dir->dir_stream);
   mem_free(dir->files);
+}
+
+void ls_fdir(const char* fpath) {
+  File f;
+  struct stat f_meta;
+
+  stat(fpath, &f_meta);
+  f.name = fpath;
+  f.ino = f_meta.st_ino;
+  f.size = f_meta.st_size;
+  f.hlinks = f_meta.st_nlink;
+  f.date = cat_date(f_meta.st_mtime);
+  f.perm = cat_perm(f_meta.st_mode);
+  f.group = getgrgid(f_meta.st_gid)->gr_name;
+  f.user = getpwuid(f_meta.st_uid)->pw_name;
+  
+  print_dir(f);
+}
+
+void print_dir(File f) {
+  if (i_flag) {
+    printf("%d ", f.ino);
+  }
+
+  if (l_flag) {
+    printf("%s %d %s %s %d %s ",
+	   f.perm, f.hlinks, f.group, f.user, f.size, f.date);
+  }
+
+  printf("%s\n", f.name);    
 }
 
 void mem_free(void* ptr) {

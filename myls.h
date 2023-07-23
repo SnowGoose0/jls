@@ -46,7 +46,11 @@ int d_comp(const void* da, const void* db);
 char* cat_path(const char* base, const char* end);
 char* cat_date(time_t t);
 char* cat_perm(mode_t m);
+
 void ls_dir(Directory* dir, const char* path);
+void ls_fdir(const char* fpath);
+void print_dir(File f);
+
 void mem_free(void* ptr);
 
 #endif
