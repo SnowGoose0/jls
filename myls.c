@@ -100,6 +100,8 @@ int main(int argc, char** argv) {
 	else {
 	  ls_fdir(path);
 	}
+
+	printf("\n");
       }
       
       globfree(&gl);
