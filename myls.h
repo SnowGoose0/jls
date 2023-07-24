@@ -41,15 +41,17 @@ typedef struct dir {
 } Directory;
 
 int f_comp(const void* fa, const void* fb);
-int d_comp(const void* da, const void* db); 
+int d_comp(const void* da, const void* db);
+int s_comp(const void* sa, const void* sb); 
 
 char* cat_path(const char* base, const char* end);
 char* cat_date(time_t t);
 char* cat_perm(mode_t m);
 
-void ls_dir(Directory* dir, const char* path);
+void ls_dir(Directory* dir, char* path);
 void ls_fdir(const char* fpath);
 void print_dir(File f);
+void init_dir(Directory* dir);
 
 void mem_free(void* ptr);
 

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -12,7 +13,7 @@
 
 #include "myls.h"
 
-const char* default_dir_path = ".";
+char* default_dir_path = ".";
 
 static int r_flag, i_flag, l_flag;
 
@@ -69,10 +70,12 @@ int main(int argc, char** argv) {
     }
   }
 
-  if (dir_path_index++ == 0) {
+  if (dir_path_index == 0) {
+    dir_path_index = 1;
     dir_paths[0] = default_dir_path;
   }
 
+  qsort(dir_paths, dir_path_index, sizeof(char*), s_comp);
   dir_list = (Directory*) malloc(dir_path_index * sizeof(Directory));
 
   for (int i = 0; i < dir_path_index && dir_paths[i] != NULL; ++i) {
@@ -80,8 +83,6 @@ int main(int argc, char** argv) {
     /* struct stat path_stat; */
     /* stat(path, &path_stat); */
     
-
-
     char* ppath = dir_paths[i];
     glob_t gl;
     int res = glob(ppath, 0, NULL, &gl);
@@ -92,14 +93,7 @@ int main(int argc, char** argv) {
 	struct stat path_stat;
 	stat(path, &path_stat);
 	if (S_ISDIR(path_stat.st_mode)) {
-	  dir_list[i].dir_stream = NULL;
-	  dir_list[i].dir_entry = NULL;
-	  dir_list[i].files = NULL;
-	  dir_list[i].child_dir = NULL;
-
-	  dir_list[i].file_count = 0;
-	  dir_list[i].child_dir_count = 0;
-    
+	  init_dir(dir_list + i);
 	  ls_dir(dir_list + i, dir_paths[i]);
 	}
 
@@ -184,15 +178,23 @@ char* cat_perm(mode_t m) {
 int f_comp(const void* fa, const void* fb) {
   char* fa_s = (char*) ((File*) fa)->name;
   char* fb_s = (char*) ((File*) fb)->name;
-  return strcmp(fa_s, fb_s);
+  
+  return strcasecmp(fa_s, fb_s);
 }
 
 int d_comp(const void* da, const void* db) {
-  
+  char* da_s = (char*) ((Directory*) da)->base_path;
+  char* db_s = (char*) ((Directory*) db)->base_path;
+
+  return strcasecmp(da_s, db_s);
 }
 
-void ls_dir(Directory* dir, const char* path) {
-  printf("%s\n", path);
+int s_comp(const void* sa, const void* sb) {
+  return strcasecmp(*((const char**) sa), *((const char**) sb));
+}
+
+void ls_dir(Directory* dir, char* path) {
+  printf("%s:\n", path);
   dir->base_path = path;
   dir->dir_stream = opendir(path);
 
@@ -209,6 +211,7 @@ void ls_dir(Directory* dir, const char* path) {
   while ((dir->dir_entry = readdir(dir->dir_stream)) != NULL) {
     int idx = dir->file_count;
     File f;
+    Directory d;
     
     struct dirent* dir_ptr = dir->dir_entry;
     struct stat dir_meta;
@@ -233,7 +236,9 @@ void ls_dir(Directory* dir, const char* path) {
 
     if (f.type == DT_DIR) {
       int c_idx = dir->child_dir_count;
-      /* TODO: setup dir */
+      init_dir(&d);
+      d.base_path = f.path;
+      dir->child_dir[c_idx] = d;
       dir->child_dir = (Directory*) realloc(dir->child_dir,
 					    (++dir->child_dir_count + 1) * sizeof(Directory));
     }
@@ -244,13 +249,17 @@ void ls_dir(Directory* dir, const char* path) {
   }
 
   qsort(dir->files, dir->file_count, sizeof(File), f_comp); /* Sort files in directories */
+  qsort(dir->child_dir, dir->child_dir_count, sizeof(Directory), d_comp);
 
   for (int i = 0; i < dir->file_count; ++i) {
     print_dir(dir->files[i]);
   }
 
   if (r_flag && dir->child_dir_count != 0) {
-    
+    for (int i = 0; i < dir->child_dir_count; ++i) {
+      printf("\n");
+      ls_dir(dir->child_dir + i, dir->child_dir[i].base_path);
+    }
   }
 
   /* Mem management */
@@ -297,9 +306,19 @@ void print_dir(File f) {
   printf("%s\n", f.name);    
 }
 
+void init_dir(Directory* dir) {
+  dir->dir_stream = NULL;
+  dir->dir_entry = NULL;
+  dir->files = NULL;
+  dir->child_dir = NULL;
+  dir->file_count = 0;
+  dir->child_dir_count = 0;
+}
+
 void mem_free(void* ptr) {
   if (ptr != NULL) {
     free(ptr);
     ptr = NULL;
   }
 }
+
