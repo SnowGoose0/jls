@@ -12,6 +12,7 @@
 #include <grp.h>
 
 #include "myls.h"
+#include "utils.h"
 
 char* default_dir_path = ".";
 
@@ -75,14 +76,34 @@ int main(int argc, char** argv) {
     dir_paths[0] = default_dir_path;
   }
 
-  qsort(dir_paths, dir_path_index, sizeof(char*), s_comp);
+  ssort(dir_paths, dir_path_index, sizeof(char*), s_comp);
   dir_list = (Directory*) malloc(dir_path_index * sizeof(Directory));
 
+  /* Print files */
   for (int i = 0; i < dir_path_index && dir_paths[i] != NULL; ++i) {
-    /* char* path = dir_paths[i]; */
-    /* struct stat path_stat; */
-    /* stat(path, &path_stat); */
-    
+    glob_t gl;
+    int f_count = 0;
+
+    if (glob(dir_paths[i], 0, NULL, &gl) == 0) {
+      for (size_t j = 0; j < gl.gl_pathc; ++j) {
+	struct stat path_stat;
+	stat(gl.gl_pathv[j], &path_stat);
+	
+	if (S_ISREG(path_stat.st_mode)) {
+	  ls_fdir(gl.gl_pathv[j]);
+	  f_count++;
+	}
+      }
+      
+      globfree(&gl);
+    }
+
+    if (f_count)
+      printf("\n");
+  }
+
+  /* Print directories */
+  for (int i = 0; i < dir_path_index && dir_paths[i] != NULL; ++i) {
     char* ppath = dir_paths[i];
     glob_t gl;
     int res = glob(ppath, 0, NULL, &gl);
@@ -92,7 +113,13 @@ int main(int argc, char** argv) {
 	char* path = gl.gl_pathv[j];
 	struct stat path_stat;
 	stat(path, &path_stat);
+	
 	if (S_ISDIR(path_stat.st_mode)) {
+	  if (dir_path_index != 1) {
+	    if (i != 0) putchar('\n');
+	    printf("%s:\n", path);
+	  }
+	  
 	  init_dir(dir_list + i);
 	  ls_dir(dir_list + i, dir_paths[i]);
 	}
@@ -100,8 +127,6 @@ int main(int argc, char** argv) {
 	else {
 	  ls_fdir(path);
 	}
-
-	printf("\n");
       }
       
       globfree(&gl);
@@ -113,90 +138,13 @@ int main(int argc, char** argv) {
 
   }
 
- EXIT:
   mem_free(dir_paths);
   mem_free(dir_list);
   
   exit(EXIT_SUCCESS);
 }
 
-
-
-
-char* cat_path(const char* base, const char* end) {
-  char* path;
-  int base_len = (int) strlen(base);
-  int end_len = (int) strlen(end);
-
-  path = (char*) calloc(base_len + end_len + 2, sizeof(char));
-  strncpy(path, base, base_len);
-  strncpy(path + base_len + 1, end, end_len);
-  path[base_len] = '/';
-
-  return path;
-}
-
-char* cat_date(time_t t) {
-  char* t_format;
-  struct tm tm_format = *localtime(&t);
-
-  t_format = (char*) calloc(30, sizeof(char));
-
-  char* spc_d = "";
-  char* spc_h = "";
-  char* spc_m = "";
-
-  if (tm_format.tm_mday < 10) spc_d = " ";
-  if (tm_format.tm_hour < 10) spc_h = "0";
-  if (tm_format.tm_min < 10) spc_m = "0";
-  
-  sprintf(t_format, "%s %s%d %s%d:%s%d %d",
-	  month[tm_format.tm_mon],
-	  spc_d, tm_format.tm_mday,
-	  spc_h, tm_format.tm_hour,
-	  spc_m, tm_format.tm_min,
-	  1900 + tm_format.tm_year);
-  
-  return t_format;
-}
-
-char* cat_perm(mode_t m) {
-  char* m_format = (char*) calloc(11, sizeof(char));
-  
-  m_format[0] = S_ISDIR(m) ? 'd' : '-';
-  m_format[1] = (m & S_IRUSR) ? 'r' : '-';
-  m_format[2] = (m & S_IWUSR) ? 'w' : '-';
-  m_format[3] = (m & S_IXUSR) ? 'x' : '-';
-  m_format[4] = (m & S_IRGRP) ? 'r' : '-';
-  m_format[5] = (m & S_IWGRP) ? 'w' : '-';
-  m_format[6] = (m & S_IXGRP) ? 'x' : '-';
-  m_format[7] = (m & S_IROTH) ? 'r' : '-';
-  m_format[8] = (m & S_IWOTH) ? 'w' : '-';
-  m_format[9] = (m & S_IXOTH) ? 'x' : '-';
-  
-  return m_format;
-}
-
-int f_comp(const void* fa, const void* fb) {
-  char* fa_s = (char*) ((File*) fa)->name;
-  char* fb_s = (char*) ((File*) fb)->name;
-  
-  return strcasecmp(fa_s, fb_s);
-}
-
-int d_comp(const void* da, const void* db) {
-  char* da_s = (char*) ((Directory*) da)->base_path;
-  char* db_s = (char*) ((Directory*) db)->base_path;
-
-  return strcasecmp(da_s, db_s);
-}
-
-int s_comp(const void* sa, const void* sb) {
-  return strcasecmp(*((const char**) sa), *((const char**) sb));
-}
-
 void ls_dir(Directory* dir, char* path) {
-  printf("%s:\n", path);
   dir->base_path = path;
   dir->dir_stream = opendir(path);
 
@@ -250,16 +198,13 @@ void ls_dir(Directory* dir, char* path) {
     dir->files = (File*) realloc(dir->files, (++dir->file_count + 1) * sizeof(File));
   }
 
-  qsort(dir->files, dir->file_count, sizeof(File), f_comp); /* Sort files in directories */
-  qsort(dir->child_dir, dir->child_dir_count, sizeof(Directory), d_comp);
+  ssort(dir->files, dir->file_count, sizeof(File), f_comp); /* Sort files in directories */
+  ssort(dir->child_dir, dir->child_dir_count, sizeof(Directory), d_comp);
 
-  for (int i = 0; i < dir->file_count; ++i) {
-    print_dir(dir->files[i]);
-  }
+  print_dir(dir, i_flag, l_flag);
 
   if (r_flag && dir->child_dir_count != 0) {
     for (int i = 0; i < dir->child_dir_count; ++i) {
-      printf("\n");
       ls_dir(dir->child_dir + i, dir->child_dir[i].base_path);
     }
   }
@@ -292,35 +237,5 @@ void ls_fdir(const char* fpath) {
   f.group = getgrgid(f_meta.st_gid)->gr_name;
   f.user = getpwuid(f_meta.st_uid)->pw_name;
   
-  print_dir(f);
+  print_fdir(f, i_flag, l_flag);
 }
-
-void print_dir(File f) {
-  if (i_flag) {
-    printf("%d ", f.ino);
-  }
-
-  if (l_flag) {
-    printf("%s %d %s %s %d %s ",
-	   f.perm, f.hlinks, f.group, f.user, f.size, f.date);
-  }
-
-  printf("%s\n", f.name);    
-}
-
-void init_dir(Directory* dir) {
-  dir->dir_stream = NULL;
-  dir->dir_entry = NULL;
-  dir->files = NULL;
-  dir->child_dir = NULL;
-  dir->file_count = 0;
-  dir->child_dir_count = 0;
-}
-
-void mem_free(void* ptr) {
-  if (ptr != NULL) {
-    free(ptr);
-    ptr = NULL;
-  }
-}
-
