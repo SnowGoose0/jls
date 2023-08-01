@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 	  }
 
 	  else {
-	    fprintf(stderr, "Error: unrecognized argument: %c\n", *args);
+	    fprintf(stderr, ERR_ODNE, *args);
 	    exit(EXIT_FAILURE);
 	  }
 	}
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
 	  dir_path_size++;
 	  dir_paths = (char**) realloc(dir_paths, dir_path_size * sizeof(char*));
 	}
-
+	
 	dir_paths[dir_path_index] = argv[i];
 	dir_path_index++;
       }
@@ -80,9 +80,10 @@ int main(int argc, char** argv) {
   dir_list = (Directory*) malloc(dir_path_index * sizeof(Directory));
 
   /* Print files */
+  int f_count = 0;
+  
   for (int i = 0; i < dir_path_index && dir_paths[i] != NULL; ++i) {
     glob_t gl;
-    int f_count = 0;
 
     if (glob(dir_paths[i], 0, NULL, &gl) == 0) {
       for (size_t j = 0; j < gl.gl_pathc; ++j) {
@@ -98,8 +99,9 @@ int main(int argc, char** argv) {
       globfree(&gl);
     }
 
-    if (f_count)
-      printf("\n");
+    else {
+      fprintf(stderr, ERR_FDNE, dir_paths[i]);
+    }
   }
 
   /* Print directories */
@@ -115,27 +117,22 @@ int main(int argc, char** argv) {
 	stat(path, &path_stat);
 	
 	if (S_ISDIR(path_stat.st_mode)) {
-	  if (dir_path_index != 1) {
-	    if (i != 0) putchar('\n');
+	  if (dir_path_index != 1 || r_flag) {
+	    if (i != 0 || f_count) putchar('\n');
 	    printf("%s:\n", path);
 	  }
 	  
 	  init_dir(dir_list + i);
 	  ls_dir(dir_list + i, dir_paths[i]);
 	}
-
-	else {
-	  ls_fdir(path);
-	}
       }
       
       globfree(&gl);
     }
 
-    else if (res == GLOB_NOMATCH) {
-      
-    }
-
+    /* else if (res == GLOB_NOMATCH) { */
+    /*   fprintf(stderr, ERR_FDNE, dir_paths[i]); */
+    /* } */
   }
 
   mem_free(dir_paths);
@@ -148,8 +145,7 @@ void ls_dir(Directory* dir, char* path) {
   dir->base_path = path;
   dir->dir_stream = opendir(path);
 
-  if (dir->dir_stream == NULL) {
-        
+  if (dir->dir_stream == NULL) {        
     perror("Error opening directory");
     /* TODO memory leak when failure */
     return;
@@ -205,12 +201,12 @@ void ls_dir(Directory* dir, char* path) {
 
   if (r_flag && dir->child_dir_count != 0) {
     for (int i = 0; i < dir->child_dir_count; ++i) {
+      printf("\n%s:\n", dir->child_dir[i].base_path);
       ls_dir(dir->child_dir + i, dir->child_dir[i].base_path);
     }
   }
 
   /* Mem management */
-
   mem_free(dir->child_dir);
 
   for (int i = 0; i < dir->file_count; ++i) {
@@ -226,6 +222,7 @@ void ls_dir(Directory* dir, char* path) {
 void ls_fdir(const char* fpath) {
   File f;
   struct stat f_meta;
+  size_t align_max[10] = {0,0,0,0,0,0,0,0,0,0};
 
   stat(fpath, &f_meta);
   f.name = fpath;
@@ -237,5 +234,8 @@ void ls_fdir(const char* fpath) {
   f.group = getgrgid(f_meta.st_gid)->gr_name;
   f.user = getpwuid(f_meta.st_uid)->pw_name;
   
-  print_fdir(f, i_flag, l_flag);
+  print_fdir(f, align_max, i_flag, l_flag);
+
+  mem_free(f.date);
+  mem_free(f.perm);
 }
