@@ -1,6 +1,8 @@
 CC = gcc
 CFLAGS = -Wall -Wextra
 
+all: myls
+
 myls: myls.o utils.o
 	$(CC) $(CFLAGS) -o myls myls.o utils.o
 

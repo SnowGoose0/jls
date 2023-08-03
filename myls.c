@@ -171,10 +171,11 @@ void ls_dir(Directory* dir, char* path) {
     f.ino = dir_ptr->d_ino;
     f.type = dir_ptr->d_type;
 
-    stat(f.path, &dir_meta);
+    lstat(f.path, &dir_meta);
 
     f.size = dir_meta.st_size;
     f.hlinks = dir_meta.st_nlink;
+    f.slink = cat_slink(f.path);
     f.date = cat_date(dir_meta.st_mtime);
     f.perm = cat_perm(dir_meta.st_mode);
     f.group = getgrgid(dir_meta.st_gid)->gr_name;
@@ -211,8 +212,9 @@ void ls_dir(Directory* dir, char* path) {
 
   for (int i = 0; i < dir->file_count; ++i) {
     mem_free(dir->files[i].date);
-    mem_free(dir->files[i].path);
+    mem_free(dir->files[i].path);    
     mem_free(dir->files[i].perm);
+    mem_free(dir->files[i].slink);
   }
 
   closedir(dir->dir_stream);
@@ -224,11 +226,12 @@ void ls_fdir(const char* fpath) {
   struct stat f_meta;
   size_t align_max[10] = {0,0,0,0,0,0,0,0,0,0};
 
-  stat(fpath, &f_meta);
+  lstat(fpath, &f_meta);
   f.name = fpath;
   f.ino = f_meta.st_ino;
   f.size = f_meta.st_size;
   f.hlinks = f_meta.st_nlink;
+  f.slink = cat_slink(fpath);
   f.date = cat_date(f_meta.st_mtime);
   f.perm = cat_perm(f_meta.st_mode);
   f.group = getgrgid(f_meta.st_gid)->gr_name;
@@ -238,4 +241,5 @@ void ls_fdir(const char* fpath) {
 
   mem_free(f.date);
   mem_free(f.perm);
+  mem_free(f.slink);
 }

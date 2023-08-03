@@ -39,6 +39,7 @@ int s_comp(const void* sa, const void* sb);
 void ssort(void* base, size_t count, size_t size, int (*compar)(const void*, const void*));
 
 char* cat_path(const char* base, const char* end);
+char* cat_slink(const char* path);
 char* cat_date(time_t t);
 char* cat_perm(mode_t m);
 

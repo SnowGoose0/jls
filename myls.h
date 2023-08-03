@@ -23,6 +23,7 @@ typedef struct {
   char* path;
   char* perm;
   char* date;
+  char* slink;
 
   unsigned char type;
 } File;

@@ -1,4 +1,6 @@
 #include <ctype.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "utils.h"
 
@@ -7,7 +9,7 @@ char* month[12] = {"Jan", "Feb", "Mar", "Apr",
 		  "Sep", "Oct", "Nov", "Dec"};
 
 size_t* file_max_length(const File* files, size_t length) {
-  size_t* ret_array = (size_t*)malloc(sizeof(size_t) * 9); // 9 fields in the struct
+  size_t* ret_array = (size_t*) malloc(sizeof(size_t) * 9); // 9 fields in the struct
 
   size_t max_ino = 0;
   size_t max_hlinks = 0;
@@ -93,12 +95,16 @@ void print_fdir(File f, size_t* entry_max, int i_flag, int l_flag) {
     printf("%s ", f.date);
   }
 
-  printf("%s\n", f.name);  
+  printf("%s", f.name);
+
+  if (f.slink != NULL && l_flag)
+    printf(" -> %s", f.slink);
+
+  putchar('\n');
 }
 
 void init_dir(Directory* dir) {
-  dir->dir_stream = NULL;
-  dir->dir_entry = NULL;
+  dir->dir_stream = NULL;  dir->dir_entry = NULL;
   dir->files = NULL;
   dir->child_dir = NULL;
   dir->file_count = 0;
@@ -125,19 +131,44 @@ char* cat_path(const char* base, const char* end) {
   return path;
 }
 
+char* cat_slink(const char* path) {
+  struct stat fstat;
+
+  if (lstat(path, &fstat) == 0 && S_ISLNK(fstat.st_mode)) {
+    char* slink;
+    char slink_tmp[4096];
+    ssize_t slink_len = 0;
+
+    slink_len = readlink(path, slink_tmp, fstat.st_size);
+
+    if (slink_len == -1) {
+      return NULL;
+    }
+
+    slink = (char*) calloc(slink_len + 5, sizeof(char));
+    memcpy(slink, slink_tmp, slink_len);
+
+    return slink;
+  }
+
+  return NULL;
+}
+
 char* cat_date(time_t t) {
   char* t_format;
-  struct tm tm_format = *localtime(&t);
+  struct tm tm_format;
 
-  t_format = (char*) calloc(30, sizeof(char));
+  tm_format = *localtime(&t);
 
-  char* spc_d = "";
-  char* spc_h = "";
-  char* spc_m = "";
+  t_format = (char*) calloc(50, sizeof(char));
 
-  if (tm_format.tm_mday < 10) spc_d = " ";
-  if (tm_format.tm_hour < 10) spc_h = "0";
-  if (tm_format.tm_min < 10) spc_m = "0";
+  char spc_d[2] = {0, 0};
+  char spc_h[2] = {0, 0};
+  char spc_m[2] = {0, 0};
+
+  if (tm_format.tm_mday < 10) spc_d[0] = '0';
+  if (tm_format.tm_hour < 10) spc_h[0] = '0';
+  if (tm_format.tm_min < 10) spc_m[0] = '0';
   
   sprintf(t_format, "%s %s%d %s%d:%s%d %d",
 	  month[tm_format.tm_mon],
@@ -153,6 +184,10 @@ char* cat_perm(mode_t m) {
   char* m_format = (char*) calloc(11, sizeof(char));
   
   m_format[0] = S_ISDIR(m) ? 'd' : '-';
+
+  if (m_format[0] == '-')
+    m_format[0] = S_ISLNK(m) ? 'l' : '-';
+  
   m_format[1] = (m & S_IRUSR) ? 'r' : '-';
   m_format[2] = (m & S_IWUSR) ? 'w' : '-';
   m_format[3] = (m & S_IXUSR) ? 'x' : '-';
