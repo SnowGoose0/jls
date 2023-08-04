@@ -9,8 +9,8 @@
 #define ARG_LFORM                'l'
 #define ARG_INDEX                'i'
 
-#define ERR_FDNE        "Error: cannot access '%s': No such file or directory\n"
-#define ERR_ODNE        "Error: invalid option -- '%c'\n"
+#define ERR_FDNE        "Error: Nonexistent files or directories\n"
+#define ERR_ODNE        "Error: Unsupported Option\n"
 
 typedef struct {
   int ino;

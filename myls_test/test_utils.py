@@ -37,7 +37,7 @@ def compareFiles(file1, file2):
     with open(file1, 'r') as f1, open(file2, 'r') as f2:
         for line1, line2 in zip(f1, f2):
             tokens1 = line1.split()
-            tokens2 = line2.split()
+            tokens2 = line2.split() 
 
             if len(tokens1) > 0 and tokens1[0] == 'total':
                 line1 = next(f1, None)

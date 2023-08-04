@@ -44,7 +44,7 @@ def main():
             directories = test_utils.getPath(path)
 
             if "l" in options:
-                    options_ls = options + " --time-style=\"+%b %d %H:%M %Y\" "
+                    options_ls = options + " --time-style=\"+%b %e %Y %H:%M\" "
             
             if memCheck:
                 test_utils.run(CMD_MEM.format(file=MEM_LOG, command=CMD_MLS.format(opt=options, dir=directories, file=OUT_MLS)))

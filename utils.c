@@ -159,23 +159,13 @@ char* cat_date(time_t t) {
   struct tm tm_format;
 
   tm_format = *localtime(&t);
-
   t_format = (char*) calloc(50, sizeof(char));
 
-  char spc_d[2] = {0, 0};
-  char spc_h[2] = {0, 0};
-  char spc_m[2] = {0, 0};
+  strftime(t_format, 50, "%b %d %Y %H:%M", &tm_format);
 
-  if (tm_format.tm_mday < 10) spc_d[0] = '0';
-  if (tm_format.tm_hour < 10) spc_h[0] = '0';
-  if (tm_format.tm_min < 10) spc_m[0] = '0';
-  
-  sprintf(t_format, "%s %s%d %s%d:%s%d %d",
-	  month[tm_format.tm_mon],
-	  spc_d, tm_format.tm_mday,
-	  spc_h, tm_format.tm_hour,
-	  spc_m, tm_format.tm_min,
-	  1900 + tm_format.tm_year);
+  if (tm_format.tm_mday < 10) {
+    t_format[4] = ' ';
+  }
   
   return t_format;
 }

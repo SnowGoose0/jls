@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 	  }
 
 	  else {
-	    fprintf(stderr, ERR_ODNE, *args);
+	    fprintf(stderr, ERR_ODNE);
 	    exit(EXIT_FAILURE);
 	  }
 	}
@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
     }
 
     else {
-      fprintf(stderr, ERR_FDNE, dir_paths[i]);
+      fprintf(stderr, ERR_FDNE);
     }
   }
 
@@ -146,7 +146,7 @@ void ls_dir(Directory* dir, char* path) {
   dir->dir_stream = opendir(path);
 
   if (dir->dir_stream == NULL) {        
-    perror("Error opening directory");
+    perror(ERR_FDNE);
     /* TODO memory leak when failure */
     return;
   }
