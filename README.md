@@ -1,1 +1,1 @@
-ls
+simple ls
